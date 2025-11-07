@@ -357,6 +357,79 @@ Instead of using the Task tool for subagent delegation, you could:
 This is NOT the same as SDK subagents, but achieves MCP isolation.
 
 
+---
+
+## Simple Solutions Analysis
+
+### Solution 1: Query-Level Isolation (Recommended Workaround)
+
+**Concept:** Instead of using SDK subagents (Task tool), use separate `query()` calls with different MCP configurations.
+
+**Pros:**
+- ✅ True MCP isolation - each query has completely separate MCP servers
+- ✅ No context pollution from unused tools
+- ✅ Clean separation of concerns
+- ✅ Works with current SDK
+
+**Cons:**
+- ❌ No automatic Task delegation from SDK
+- ❌ Manual orchestration needed
+- ❌ Loses automatic parallel execution of subagents
+
+**Use when:** MCP isolation is more important than SDK convenience features.
+
+### Solution 2: Tool Allowlisting (Current Best Practice)
+
+**Concept:** Use SDK subagents normally but restrict tools via `allowedTools` array.
+
+**Pros:**
+- ✅ Uses SDK subagent features (Task delegation, parallel execution)
+- ✅ Prevents tool usage (but not enumeration)
+- ✅ Simple configuration
+
+**Cons:**
+- ❌ All MCP servers still enumerated (context pollution)
+- ❌ Tool descriptions consume ~40k tokens
+- ❌ Not true isolation
+
+**Use when:** Context usage is acceptable, SDK features are valuable.
+
+### Solution 3: In-Process SDK MCP Servers
+
+**Concept:** Use `createSdkMcpServer()` to create lightweight custom tools instead of external MCP servers.
+
+**Pros:**
+- ✅ Lower overhead than external processes
+- ✅ Better performance (no IPC)
+- ✅ Easier debugging
+- ✅ Full programmatic control
+
+**Cons:**
+- ❌ Requires writing custom tool logic
+- ❌ Still shared across all subagents in same query
+- ❌ Not suitable for existing MCP servers (e.g., Playwright)
+
+**Use when:** Building custom tools from scratch.
+
+### Solution 4: External Orchestrator Pattern
+
+**Concept:** Build a TypeScript/Python orchestrator that routes tasks to different query() calls based on requirements.
+
+**Pros:**
+- ✅ Full control over routing logic
+- ✅ Can mix different MCP configurations
+- ✅ Can add business logic for task routing
+- ✅ True isolation
+
+**Cons:**
+- ❌ More code to write and maintain
+- ❌ Need to implement own task analysis
+- ❌ No automatic delegation
+
+**Use when:** Building a complex multi-agent system with specific routing needs.
+
+---
+
 ## Investigation Complete
 
 ### Final Conclusion
@@ -398,4 +471,55 @@ The official documentation is comprehensive and well-organized:
 - Active GitHub repositories with demos
 
 The limitation regarding MCP isolation is documented through GitHub issues and community discussions.
+
+---
+
+## Final Summary: Simple Solutions
+
+After thorough investigation, here are the 4 simple solutions for MCP subagent isolation:
+
+### ✅ Solution 1: Query-Level Isolation (RECOMMENDED)
+**Use separate `query()` calls with different `mcpServers` configs**
+
+- TRUE isolation - each query only sees its own MCP servers
+- No context pollution
+- Trade-off: No automatic Task delegation
+- Best for: Production use where context efficiency matters
+
+### ⚠️ Solution 2: Tool Allowlisting
+**Use `allowedTools` array to restrict tool access**
+
+- NOT true isolation - all MCP servers still enumerated
+- Keeps SDK subagent features (Task delegation, parallelization)
+- Context still polluted (~40k tokens)
+- Best for: When context usage is acceptable
+
+### 🔧 Solution 3: In-Process SDK MCP Servers
+**Use `createSdkMcpServer()` for custom tools**
+
+- Better performance than external processes
+- Still shared across all agents in same query
+- Good for building custom tools
+- Best for: New custom tool development
+
+### 🎯 Solution 4: External Orchestrator
+**Build custom task router that calls isolated queries**
+
+- TRUE isolation + sophisticated routing logic
+- More code to maintain
+- Can mix different isolation strategies
+- Best for: Complex multi-agent systems
+
+### Key Takeaway
+
+**For TRUE MCP isolation:** Use separate `query()` invocations, not SDK subagents.
+
+**For SDK convenience:** Accept context pollution or wait for GitHub Issue #4476 to be resolved.
+
+### Code Examples Created
+
+- `solution-examples.ts` - TypeScript implementations of all 4 solutions
+- `solution-examples.py` - Python implementations of all 4 solutions
+
+Both files contain complete, runnable examples demonstrating each approach.
 

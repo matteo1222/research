@@ -1,5 +1,50 @@
 # Claude Code SDK: MCP Subagent Isolation Investigation
 
+## Quick Start: Simple Solutions
+
+**Problem:** MCP servers are visible to all agents (main + subagents), causing context pollution (~40k tokens wasted).
+
+**Best Solution:** Use separate `query()` calls instead of SDK subagents for true isolation.
+
+```typescript
+// ✅ ISOLATED: Each query gets different MCP servers
+async function routeTask(task: string) {
+  if (task.includes("browser")) {
+    return query({
+      prompt: task,
+      options: { mcpServers: { playwright: playwrightConfig } }
+    });
+  } else if (task.includes("files")) {
+    return query({
+      prompt: task,
+      options: { mcpServers: { filesystem: fsConfig } }
+    });
+  }
+}
+
+// ❌ NOT ISOLATED: All subagents see all MCP servers
+query({
+  prompt: task,
+  options: {
+    mcpServers: { playwright: config1, filesystem: config2 },
+    agents: { 'browser-agent': {...}, 'file-agent': {...} }
+  }
+});
+```
+
+### 4 Simple Solutions
+
+| Solution | True Isolation? | SDK Features? | Best For |
+|----------|----------------|---------------|----------|
+| **1. Query-Level Isolation** | ✅ Yes | ❌ No Task delegation | Production use, context critical |
+| **2. Tool Allowlisting** | ❌ No | ✅ Full SDK | Can tolerate context pollution |
+| **3. In-Process MCP Servers** | ❌ No | ✅ Full SDK | Custom tools, better performance |
+| **4. External Orchestrator** | ✅ Yes | ⚠️ Custom routing | Complex multi-agent systems |
+
+**See [`solution-examples.ts`](./solution-examples.ts) and [`solution-examples.py`](./solution-examples.py) for complete working code.**
+
+---
+
 ## Executive Summary
 
 The Claude Agent SDK (formerly Claude Code SDK) provides robust programmatic control over agent configurations, including custom tools, MCP servers, and subagents. However, **true MCP server isolation for subagents is not currently supported**. MCP servers configured at the parent level are visible and enumerable by all subagents, though access can be restricted through tool allowlisting.
