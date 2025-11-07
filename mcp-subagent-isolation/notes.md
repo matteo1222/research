@@ -523,3 +523,94 @@ After thorough investigation, here are the 4 simple solutions for MCP subagent i
 
 Both files contain complete, runnable examples demonstrating each approach.
 
+---
+
+## Solution 5: MCP Proxy Server (User Suggestion)
+
+### Concept
+
+Instead of fighting the architecture, work WITH it by creating a smart MCP proxy server:
+
+```
+Claude Code CLI
+      ↓
+  [MCP Proxy Server] ← Single connection point
+      ↓ ↓ ↓ ↓
+   [Playwright] [Filesystem] [Database] [Other MCPs]
+```
+
+**How it works:**
+1. Claude Code connects to ONE MCP server (the proxy)
+2. Proxy internally connects to multiple "backend" MCP servers
+3. Proxy intelligently decides which tools to expose based on:
+   - Current task/context
+   - Agent requests
+   - Dynamic tool discovery
+
+### Possible Implementation Strategies
+
+#### Strategy A: Tool Discovery MCP
+The proxy exposes a "search tools" function that agents can call:
+
+```typescript
+// Proxy exposes minimal initial tools
+tools: [
+  "search_available_tools",  // Search backend MCPs
+  "enable_tool"              // Add tool to current session
+]
+
+// Agent workflow:
+1. Agent: "I need to scrape a website"
+2. Calls: search_available_tools("browser automation")
+3. Proxy returns: ["playwright__navigate", "playwright__click", ...]
+4. Calls: enable_tool("playwright__navigate")
+5. Proxy adds Playwright tools to available list
+6. Agent can now use Playwright tools
+```
+
+#### Strategy B: Context-Aware Filtering
+Proxy analyzes conversation context and exposes relevant tools:
+
+```typescript
+// Proxy monitors task keywords
+if (task.includes("browser") || task.includes("scrape")) {
+  exposeTools(playwrightTools);
+} else if (task.includes("file") || task.includes("directory")) {
+  exposeTools(filesystemTools);
+}
+```
+
+#### Strategy C: Lazy Loading
+Start with minimal tools, dynamically add when requested:
+
+```typescript
+// Initial state: Empty or minimal tools
+// When agent tries to use unavailable tool:
+// 1. Proxy searches backends for matching tool
+// 2. If found, adds to exposed list
+// 3. Returns result
+```
+
+### Advantages
+
+✅ **Works with current CLI** - No SDK needed, works with daily driver
+✅ **True isolation** - Main agent only sees what proxy exposes
+✅ **Reduces context pollution** - Only expose needed tools
+✅ **Single config point** - One entry in .mcp.json
+✅ **Flexible routing** - Smart logic for tool selection
+✅ **Compatible with subagents** - Subagents also benefit from reduced context
+
+### Disadvantages
+
+❌ **Complex to build** - Need to implement MCP protocol
+❌ **Maintenance overhead** - Additional layer to manage
+❌ **Potential latency** - Extra hop for tool calls
+❌ **Discovery UX** - Agent needs to know to search for tools
+
+### Investigation Needed
+
+1. Can MCP servers dynamically add/remove tools after initialization?
+2. What's the MCP protocol for tool enumeration?
+3. Are there existing MCP proxy implementations?
+4. How to handle tool discovery ergonomically?
+

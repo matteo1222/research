@@ -32,16 +32,19 @@ query({
 });
 ```
 
-### 4 Simple Solutions
+### 5 Solutions Available
 
-| Solution | True Isolation? | SDK Features? | Best For |
-|----------|----------------|---------------|----------|
-| **1. Query-Level Isolation** | ✅ Yes | ❌ No Task delegation | Production use, context critical |
-| **2. Tool Allowlisting** | ❌ No | ✅ Full SDK | Can tolerate context pollution |
-| **3. In-Process MCP Servers** | ❌ No | ✅ Full SDK | Custom tools, better performance |
-| **4. External Orchestrator** | ✅ Yes | ⚠️ Custom routing | Complex multi-agent systems |
+| Solution | True Isolation? | Works with CLI? | Best For |
+|----------|----------------|----------------|----------|
+| **🏆 5. MCP Proxy Server** | ⚠️ Partial | ✅ Yes | **CLI daily driver** (RECOMMENDED) |
+| **1. Query-Level Isolation** | ✅ Yes | ❌ No | SDK/programmatic use |
+| **2. Tool Allowlisting** | ❌ No | ✅ Yes | Can tolerate context pollution |
+| **3. In-Process MCP Servers** | ❌ No | ⚠️ Hybrid | Custom tools, better performance |
+| **4. External Orchestrator** | ✅ Yes | ❌ No | Complex multi-agent systems |
 
-**See [`solution-examples.ts`](./solution-examples.ts) and [`solution-examples.py`](./solution-examples.py) for complete working code.**
+**🎯 For interactive CLI use (your daily driver):** See **[Solution 5: MCP Proxy Server](./solution5-mcp-proxy.md)** - Production-ready, with web UI!
+
+**For SDK/programmatic use:** See [`solution-examples.ts`](./solution-examples.ts) and [`solution-examples.py`](./solution-examples.py)
 
 ---
 
@@ -562,8 +565,101 @@ if __name__ == "__main__":
 - Issue #4476: Agent-Scoped MCP Configuration with Strict Isolation
   https://github.com/anthropics/claude-code/issues/4476
 
+## Solution 5: MCP Proxy Server (RECOMMENDED FOR CLI USE)
+
+**This is the best solution for interactive Claude Code CLI usage!**
+
+### What is it?
+
+Use an **MCP proxy server** that aggregates multiple backend MCP servers and exposes only the tools you want:
+
+```
+Claude Code CLI → [MCP Proxy] → [Playwright] [Filesystem] [Database]
+                       ↓
+                Enable/disable individual tools via web UI
+```
+
+### Why is this best for CLI?
+
+✅ **Works with your daily driver** - No SDK needed, just configure one MCP server
+✅ **Reduces context pollution** - Enable/disable tools individually
+✅ **Production-ready** - Multiple implementations available now
+✅ **Web UI management** - Toggle tools on/off easily
+✅ **Live reload** - Changes apply without restart
+
+### Quick Start
+
+**1. Install MCP Proxy** (recommended: [ptbsare/mcp-proxy-server](https://github.com/ptbsare/mcp-proxy-server))
+
+```bash
+git clone https://github.com/ptbsare/mcp-proxy-server.git
+cd mcp-proxy-server
+npm install && npm run build
+```
+
+**2. Configure backend servers** (`config/mcp_server.json`):
+
+```json
+{
+  "playwright": {
+    "type": "stdio",
+    "command": "npx",
+    "args": ["-y", "@modelcontextprotocol/server-playwright"]
+  },
+  "filesystem": {
+    "type": "stdio",
+    "command": "npx",
+    "args": ["-y", "@modelcontextprotocol/server-filesystem"]
+  }
+}
+```
+
+**3. Filter tools** (`config/tool_config.json`):
+
+```json
+{
+  "playwright__navigate": { "disabled": false },
+  "playwright__screenshot": { "disabled": true },
+  "filesystem__read_file": { "disabled": false }
+}
+```
+
+**4. Connect Claude Code** (`.mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "proxy": {
+      "command": "node",
+      "args": ["/path/to/mcp-proxy-server/build/index.js"]
+    }
+  }
+}
+```
+
+**See [solution5-mcp-proxy.md](./solution5-mcp-proxy.md) for complete guide!**
+
+### Limitations
+
+⚠️ **Not true per-subagent isolation** - All agents (main + subagents) still see the same proxy tools
+⚠️ **Manual management** - You control which tools are enabled (via web UI)
+
+But it **significantly reduces context pollution** compared to exposing all MCP servers directly.
+
+---
+
 ## Conclusion
 
-The Claude Agent SDK provides powerful programmatic control over agent configurations, custom tools, and MCP servers. While it supports sophisticated multi-agent systems with tool restrictions and isolated contexts, **true MCP server isolation for subagents is not currently available**. 
+### For Interactive CLI Users (Daily Driver)
+
+**Use Solution 5: MCP Proxy Server** ([guide](./solution5-mcp-proxy.md))
+- Works with Claude Code CLI as-is
+- Production-ready implementations available
+- Web UI for easy tool management
+- Reduces context pollution significantly
+
+### For Programmatic/SDK Users
+
+The Claude Agent SDK provides powerful programmatic control over agent configurations, custom tools, and MCP servers. While it supports sophisticated multi-agent systems with tool restrictions and isolated contexts, **true MCP server isolation for subagents is not currently available**.
 
 Developers requiring strict MCP isolation should consider using separate query invocations with different MCP configurations, orchestrated externally, rather than relying on the SDK's subagent Task delegation mechanism.
