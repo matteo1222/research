@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anki Code Execution Proof of Concept</title>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h2 {
+            color: #333;
+            margin-top: 0;
+        }
+        .problem-description {
+            background: #f9f9f9;
+            padding: 15px;
+            border-left: 4px solid #4CAF50;
+            margin-bottom: 15px;
+        }
+        #codeEditor {
+            width: 100%;
+            height: 200px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #272822;
+            color: #f8f8f2;
+            resize: vertical;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+        #output {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            min-height: 50px;
+        }
+        .test-results {
+            margin-top: 15px;
+        }
+        .test-pass {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        .test-fail {
+            color: #f44336;
+            font-weight: bold;
+        }
+        .loading {
+            color: #2196F3;
+            font-style: italic;
+        }
+        .hint-section {
+            margin-top: 15px;
+            padding: 10px;
+            background: #fff9c4;
+            border-radius: 4px;
+        }
+        .hint-button {
+            background: #FF9800;
+        }
+        .hint-button:hover {
+            background: #F57C00;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Programming Challenge: Two Sum</h2>
+
+        <div class="problem-description">
+            <p><strong>Problem:</strong> Write a function that takes a list of numbers and a target sum,
+            and returns the indices of two numbers that add up to the target.</p>
+            <p><strong>Example:</strong></p>
+            <code>
+                two_sum([2, 7, 11, 15], 9) → [0, 1]<br>
+                two_sum([3, 2, 4], 6) → [1, 2]
+            </code>
+        </div>
+
+        <label for="codeEditor"><strong>Your Solution:</strong></label>
+        <textarea id="codeEditor" placeholder="def two_sum(nums, target):
+    # Write your solution here
+    pass">def two_sum(nums, target):
+    # Write your solution here
+    pass</textarea>
+
+        <div style="margin-top: 15px;">
+            <button id="runBtn" onclick="runCode()">Run Code</button>
+            <button id="testBtn" onclick="runTests()">Run Tests</button>
+            <button class="hint-button" onclick="showHint()">Show Hint</button>
+        </div>
+
+        <div id="output"></div>
+        <div id="testResults" class="test-results"></div>
+
+        <div id="hintSection" class="hint-section" style="display: none;">
+            <strong>Hint:</strong> Use a hash map (dictionary) to store numbers you've seen and their indices.
+            For each number, check if (target - number) exists in the hash map.
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>About This Demo</h3>
+        <p>This is a proof-of-concept showing how code execution could work in Anki flashcards using:</p>
+        <ul>
+            <li><strong>Pyodide:</strong> Python runtime compiled to WebAssembly</li>
+            <li><strong>Browser-based execution:</strong> Runs entirely client-side, no server needed</li>
+            <li><strong>Test cases:</strong> Pre-defined tests to validate solutions</li>
+            <li><strong>Cross-platform:</strong> Works on any device with a modern browser</li>
+        </ul>
+        <p><em>Note: This could be packaged as an Anki card template or custom card type.</em></p>
+    </div>
+
+    <script>
+        let pyodide = null;
+
+        async function loadPyodideAndPackages() {
+            const output = document.getElementById('output');
+            output.innerHTML = '<span class="loading">Loading Python environment (Pyodide)... This may take a moment...</span>';
+
+            try {
+                pyodide = await loadPyodide();
+                output.innerHTML = '<span class="test-pass">✓ Python environment loaded! You can now run your code.</span>';
+                document.getElementById('runBtn').disabled = false;
+                document.getElementById('testBtn').disabled = false;
+            } catch (error) {
+                output.innerHTML = `<span class="test-fail">Error loading Pyodide: ${error.message}</span>`;
+            }
+        }
+
+        async function runCode() {
+            if (!pyodide) {
+                alert('Pyodide is still loading. Please wait...');
+                return;
+            }
+
+            const code = document.getElementById('codeEditor').value;
+            const output = document.getElementById('output');
+
+            try {
+                output.innerHTML = 'Running code...';
+
+                // Run the user's code
+                await pyodide.runPythonAsync(code);
+
+                // Test with a simple example
+                const result = await pyodide.runPythonAsync(`
+try:
+    result = two_sum([2, 7, 11, 15], 9)
+    str(result)
+except Exception as e:
+    f"Error: {str(e)}"
+                `);
+
+                output.innerHTML = `<span class="test-pass">✓ Code executed successfully!</span>\n\nExample output: two_sum([2, 7, 11, 15], 9) = ${result}`;
+            } catch (error) {
+                output.innerHTML = `<span class="test-fail">✗ Error:</span>\n${error.message}`;
+            }
+        }
+
+        async function runTests() {
+            if (!pyodide) {
+                alert('Pyodide is still loading. Please wait...');
+                return;
+            }
+
+            const code = document.getElementById('codeEditor').value;
+            const testResults = document.getElementById('testResults');
+            const output = document.getElementById('output');
+
+            try {
+                output.innerHTML = 'Running tests...';
+                testResults.innerHTML = '';
+
+                // Load user's code
+                await pyodide.runPythonAsync(code);
+
+                // Define test cases
+                const tests = [
+                    { input: [[2, 7, 11, 15], 9], expected: [0, 1] },
+                    { input: [[3, 2, 4], 6], expected: [1, 2] },
+                    { input: [[3, 3], 6], expected: [0, 1] },
+                    { input: [[-1, -2, -3, -4, -5], -8], expected: [2, 4] }
+                ];
+
+                let passed = 0;
+                let failed = 0;
+                let resultsHTML = '<h3>Test Results:</h3>';
+
+                for (let i = 0; i < tests.length; i++) {
+                    const test = tests[i];
+                    const result = await pyodide.runPythonAsync(`
+import json
+try:
+    result = two_sum(${JSON.stringify(test.input[0])}, ${test.input[1]})
+    json.dumps(result)
+except Exception as e:
+    json.dumps({"error": str(e)})
+                    `);
+
+                    const parsedResult = JSON.parse(result);
+
+                    if (parsedResult.error) {
+                        failed++;
+                        resultsHTML += `<div class="test-fail">✗ Test ${i + 1}: Error - ${parsedResult.error}</div>`;
+                    } else if (JSON.stringify(parsedResult) === JSON.stringify(test.expected)) {
+                        passed++;
+                        resultsHTML += `<div class="test-pass">✓ Test ${i + 1}: Passed</div>`;
+                    } else {
+                        failed++;
+                        resultsHTML += `<div class="test-fail">✗ Test ${i + 1}: Failed - Expected ${JSON.stringify(test.expected)}, got ${JSON.stringify(parsedResult)}</div>`;
+                    }
+                }
+
+                testResults.innerHTML = resultsHTML;
+                output.innerHTML = `<strong>Summary:</strong> ${passed} passed, ${failed} failed`;
+
+                if (failed === 0) {
+                    output.innerHTML += '\n<span class="test-pass">🎉 All tests passed! Great job!</span>';
+                }
+
+            } catch (error) {
+                output.innerHTML = `<span class="test-fail">✗ Error running tests:</span>\n${error.message}`;
+                testResults.innerHTML = '';
+            }
+        }
+
+        function showHint() {
+            const hintSection = document.getElementById('hintSection');
+            hintSection.style.display = hintSection.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // Disable buttons initially
+        document.getElementById('runBtn').disabled = true;
+        document.getElementById('testBtn').disabled = true;
+
+        // Load Pyodide when page loads
+        loadPyodideAndPackages();
+    </script>
+</body>
+</html>
